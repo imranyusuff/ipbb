@@ -49,7 +49,7 @@ _memCfgKinds = {
 # ------------------------------------------------------------------------------
 def ensureVivado(ictx):
     """Utility function guaranteeing the correct Vivado environment.
-    
+
     Args:
         ictx (ipbb.Context): Context object
     
@@ -69,7 +69,7 @@ def ensureVivado(ictx):
 # ------------------------------------------------------------------------------
 def ensureVivadoProjPath(aProjPath: str):
     """Utility function to ensure that the project path exists
-    
+
     Args:
         aProjPath (str): Vivado Project path
     
@@ -82,13 +82,13 @@ def ensureVivadoProjPath(aProjPath: str):
 # ------------------------------------------------------------------------------
 def vivado(ictx, proj, verbosity, cmdlist):
     '''Vivado command group
-    
+
     Args:
         ctx (click.Context): Command context
         ictx (ipbb.Context): Context object
         proj (str): Project name
         verbosity (str): Verbosity level
-    
+
     Raises:
         click.ClickException: Undefined project area
     '''
@@ -385,9 +385,9 @@ def resource_usage(ictx, aCell, aDepth, aFile):
         with ictx.vivadoSessions.getctx(lSessionId) as lConsole:
             lProject = VivadoProject(lConsole, ictx.vivadoProjFile)
             for c in (
-                    'open_run impl_1',
-                    lCmd
-                ):
+                'open_run impl_1',
+                lCmd
+            ):
                 lConsole(c)
     except VivadoConsoleError as lExc:
         logVivadoConsoleError(lExc)
@@ -466,7 +466,7 @@ def debugprobes(ictx):
 # ------------------------------------------------------------------------------
 def memcfg(ictx):
     '''Create a memcfg file for PROM programming
-    
+
     Supports bin and mcs file types
     Requires the corresponding options to be defined in the dep files:
  
