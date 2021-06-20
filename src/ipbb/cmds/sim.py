@@ -121,7 +121,7 @@ def sim(ictx, proj):
 
     validate(_schema, ictx.depParser.settings, _toolset)
 
-    ensureModelsim(ictx)
+    #ensureModelsim(ictx)
 
 
 # ------------------------------------------------------------------------------
