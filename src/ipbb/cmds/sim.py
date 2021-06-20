@@ -477,10 +477,10 @@ def genproject(ictx, aOptimise, aToScript, aToStdout):
     # -------------------------------------------------------------------------
 
     # -------------------------------------------------------------------------
-    if not which('vsim'):
-        raise click.ClickException(
-            'ModelSim (vsim) not found. Please add Modelsim to PATH and execute the command again.'
-        )
+    #if not which('vsim'):
+    #    raise click.ClickException(
+    #        'ModelSim (vsim) not found. Please add Modelsim to PATH and execute the command again.'
+    #    )
     # -------------------------------------------------------------------------
 
     lDepFileParser = ictx.depParser
