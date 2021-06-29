@@ -16,7 +16,7 @@ from rich.prompt import Confirm
 from .schema import project_schema, validate
 
 from ..console import cprint, console
-from ..tools import xilinx, mentor
+from ..tools import xilinx, mentor, ghdl
 from ..utils import DEFAULT_ENCODING
 from ..utils import ensureNoParsingErrors, ensureNoMissingFiles, logVivadoConsoleError
 from ..utils import which, mkdir, SmartOpen
@@ -38,6 +38,7 @@ from os.path import (
 # Generators imports
 from ..generators.ipcoressim import IPCoresSimGenerator, find_ip_sim_src
 from ..generators.modelsimproject import ModelSimGenerator
+from ..generators.ghdlproject import GHDLGenerator
 
 # Constants
 kVsimWrapper = 'run_sim'
@@ -405,6 +406,44 @@ def fli_eth(ictx, dev, ipbuspkg):
 
 
 # ------------------------------------------------------------------------------
+def vhpidirect_eth(ictx, dev, ipbuspkg):
+    """
+    Build the GHDL-ipbus foreign language interface
+    """
+
+    # -------------------------------------------------------------------------
+    if ipbuspkg not in ictx.sources:
+        raise click.ClickException(
+            "Package %s not found in source/. The VHPIDIRECT cannot be built." % ipbuspkg
+        )
+
+    # Set GHDL root based on ghdl's path
+    os.environ['GHDL_ROOT'] = dirname(dirname(which('ghdl')))
+
+    lIntfSrc = join(
+        ictx.srcdir,
+        ipbuspkg,
+        'components',
+        'ghdl_vhpidirect',
+        'eth',
+        'firmware',
+        'sim',
+        'ghdl_vhpidirect',
+    )
+
+    import sh
+
+    # Clean-up
+    sh.rm('-rf', 'ghdl_vhpidirect', 'mac_vhpidirect.so', _out=sys.stdout)
+    # Copy
+    sh.cp('-a', lIntfSrc, './', _out=sys.stdout)
+    # Make
+    sh.make('-C', 'ghdl_vhpidirect', 'TAP_DEV={0}'.format(dev), _out=sys.stdout)
+    # Link
+    sh.ln('-s', 'ghdl_vhpidirect/mac_vhpidirect.so', '.', _out=sys.stdout)
+
+
+# ------------------------------------------------------------------------------
 def fli_udp(ictx, port, ipbuspkg):
     """
     Build the Modelsim-ipbus foreign language interface
@@ -445,7 +484,45 @@ def fli_udp(ictx, port, ipbuspkg):
 
 
 # ------------------------------------------------------------------------------
-def genproject(ictx, aOptimise, aToScript, aToStdout):
+def vhpidirect_udp(ictx, port, ipbuspkg):
+    """
+    Build the GHDL-ipbus foreign language interface
+    """
+
+    # -------------------------------------------------------------------------
+    if ipbuspkg not in ictx.sources:
+        raise click.ClickException(
+            "Package %s not found in source/. The VHPIDIRECT cannot be built." % ipbuspkg
+        )
+
+    # Set GHDL root based on ghdl's path
+    os.environ['GHDL_ROOT'] = dirname(dirname(which('ghdl')))
+
+    lIntfSrc = join(
+        ictx.srcdir,
+        ipbuspkg,
+        'components',
+        'ghdl_vhpidirect',
+        'transport_udp',
+        'firmware',
+        'sim',
+        'ghdl_vhpidirect',
+    )
+
+    import sh
+
+    # Clean-up
+    sh.rm('-rf', 'ghdl_vhpidirect', 'sim_udp_vhpidirect.so', _out=sys.stdout)
+    # Copy
+    sh.cp('-a', lIntfSrc, './', _out=sys.stdout)
+    # Make
+    sh.make('-C', 'ghdl_vhpidirect', 'IP_PORT={0}'.format(port), _out=sys.stdout)
+    # Link
+    sh.ln('-s', 'ghdl_vhpidirect/sim_udp_vhpidirect.so', '.', _out=sys.stdout)
+
+
+# ------------------------------------------------------------------------------
+def genproject(ictx, aOptimise, aToScript, aToStdout, aSimType, aUseSynopsys):
     """
     Creates the modelsim project
 
@@ -462,6 +539,14 @@ def genproject(ictx, aOptimise, aToScript, aToStdout):
     """
 
     # lSessionId = 'genproject'
+    if aSimType is None:
+        aSimType = 'modelsim'
+    if aSimType not in ['modelsim', 'ghdl']:
+        raise click.ClickException(
+            'Not a recongnized sim type.'
+        )
+
+    console.log(f'SimType is {aSimType}')
 
     # -------------------------------------------------------------------------
     # Must be in a build area
@@ -477,10 +562,14 @@ def genproject(ictx, aOptimise, aToScript, aToStdout):
     # -------------------------------------------------------------------------
 
     # -------------------------------------------------------------------------
-    #if not which('vsim'):
-    #    raise click.ClickException(
-    #        'ModelSim (vsim) not found. Please add Modelsim to PATH and execute the command again.'
-    #    )
+    if aSimType == 'modelsim' and not which('vsim'):
+        raise click.ClickException(
+            'ModelSim (vsim) not found. Please add Modelsim to PATH and execute the command again.'
+        )
+    elif aSimType == 'ghdl' and not which('ghdl'):
+        raise click.ClickException(
+            'GHDL (ghdl) not found. Please add GHDL to PATH and execute the command again.'
+        )
     # -------------------------------------------------------------------------
 
     lDepFileParser = ictx.depParser
@@ -493,30 +582,50 @@ def genproject(ictx, aOptimise, aToScript, aToStdout):
     # Ensure that all dependencies are resolved
     ensureNoMissingFiles(ictx.currentproj.name, lDepFileParser)
 
-    lSimProjMaker = ModelSimGenerator(ictx.currentproj, lSimLibrary, kIPVivadoProjName, aOptimise)
+    if aSimType == 'ghdl':
+        lSimProjMaker = GHDLGenerator(ictx.currentproj, lSimLibrary, kIPVivadoProjName, aOptimise, aUseSynopsys)
+    else:
+        lSimProjMaker = ModelSimGenerator(ictx.currentproj, lSimLibrary, kIPVivadoProjName, aOptimise)
 
     lDryRun = aToStdout or aToScript
 
     if not lDryRun:
         sh.rm('-rf', lSimLibrary)
 
-    try:
-        with mentor.ModelSimBatch(aToScript, echo=aToStdout, dryrun=lDryRun) as lSim:
-            lSimProjMaker.write(
-                lSim,
-                lDepFileParser.settings,
-                lDepFileParser.packages,
-                lDepFileParser.commands,
-                lDepFileParser.libs,
+    if aSimType == 'ghdl':
+        try:
+            with ghdl.GHDLBatch(aToScript, echo=aToStdout, dryrun=lDryRun) as lSim:
+                lSimProjMaker.write(
+                    lSim,
+                    lDepFileParser.settings,
+                    lDepFileParser.packages,
+                    lDepFileParser.commands,
+                    lDepFileParser.libs,
+                )
+        except sh.ErrorReturnCode as e:
+            console.log(
+                f'ERROR: Sim exit code: {e.exit_code}.\nCommand:\n\n   {e.full_cmd}\n',
+                style='red',
             )
-    except sh.ErrorReturnCode as e:
-        console.log(
-            f'ERROR: Sim exit code: {e.exit_code}.\nCommand:\n\n   {e.full_cmd}\n',
-            style='red',
-        )
-        raise click.ClickException("Compilation failed")
+            raise click.ClickException("Compilation failed")
+    else:
+        try:
+            with mentor.ModelSimBatch(aToScript, echo=aToStdout, dryrun=lDryRun) as lSim:
+                lSimProjMaker.write(
+                    lSim,
+                    lDepFileParser.settings,
+                    lDepFileParser.packages,
+                    lDepFileParser.commands,
+                    lDepFileParser.libs,
+                )
+        except sh.ErrorReturnCode as e:
+            console.log(
+                f'ERROR: Sim exit code: {e.exit_code}.\nCommand:\n\n   {e.full_cmd}\n',
+                style='red',
+            )
+            raise click.ClickException("Compilation failed")
 
-    if lDryRun:
+    if lDryRun or aSimType=='ghdl':
         return
 
     # ----------------------------------------------------------

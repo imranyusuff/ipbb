@@ -88,6 +88,19 @@ def fli_eth(ctx, *args, **kwargs):
     return (ctx.command.name, fli_eth, args, kwargs)
 
 # ------------------------------------------------------------------------------
+@sim.command('ghdl-vhpidirect-eth')
+@click.option('-d', '--dev', metavar='DEVICE', default='tap0', help='Virtual network device')
+@click.option('-i', '--ipbuspkg', metavar='IPBUSPACKAGE', default='ipbus-firmware', help='ipbus firmware package')
+@click.pass_obj
+@click.pass_context
+def vhpidirect_eth(ctx, *args, **kwargs):
+    """
+    Build the GHDL-ipbus foreign language interface
+    """
+    from ..cmds.sim import vhpidirect_eth
+    return (ctx.command.name, vhpidirect_eth, args, kwargs)
+
+# ------------------------------------------------------------------------------
 @sim.command('fli-udp')
 @click.option('-p', '--port', metavar='PORT', default='50001', help='UPD interface port')
 @click.option('-i', '--ipbuspkg', metavar='IPBUSPACKAGE', default='ipbus-firmware', help='ipbus firmware package')
@@ -102,10 +115,26 @@ def fli_udp(ctx, *args, **kwargs):
 
 
 # ------------------------------------------------------------------------------
+@sim.command('ghdl-vhpidirect-udp')
+@click.option('-p', '--port', metavar='PORT', default='50001', help='UPD interface port')
+@click.option('-i', '--ipbuspkg', metavar='IPBUSPACKAGE', default='ipbus-firmware', help='ipbus firmware package')
+@click.pass_obj
+@click.pass_context
+def vhpidirect_udp(ctx, *args, **kwargs):
+    """
+    Build the GHDL-ipbus foreign language interface
+    """
+    from ..cmds.sim import vhpidirect_udp
+    return (ctx.command.name, vhpidirect_udp, args, kwargs)
+
+
+# ------------------------------------------------------------------------------
 @sim.command('generate-project', short_help="Assemble the simulation project from sources")
 @click.option(' /-1', '--opt/--no-opt', 'aOptimise', default=True, help="Disable project creation optimization. If present sources are added one at a time.")
 @click.option('-s', '--to-script', 'aToScript', default=None, help="Write Modelsim tcl script to file and exit (dry run).")
 @click.option('-o', '--to-stdout', 'aToStdout', is_flag=True, help="Print Modelsim tcl commands to screen and exit (dry run).")
+@click.option('-t', '--simtype', 'aSimType', default=None, help="Specify which sim to use.")
+@click.option('-y', '--use-synopsys', 'aUseSynopsys', is_flag=True, help="For GHDL, use non-standard synopsys library.")
 @click.pass_obj
 @click.pass_context
 def genproject(ctx, *args, **kwargs):
